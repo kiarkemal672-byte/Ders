@@ -1744,7 +1744,7 @@ async function setupPWA() {
       id: scope,
       name: 'ቂራአት አስተዳደር — إدارة القراءات',
       short_name: 'ቂራአት',
-      description: 'የክታቢት እና የቂራአት አስተዳደር መተግበሪያ',
+      description: 'የክታብ እና የቂራአት አስተዳደር መተግበሪያ',
       start_url: location.origin + location.pathname,
       scope: scope,
       display: 'standalone',
