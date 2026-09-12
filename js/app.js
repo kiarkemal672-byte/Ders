@@ -1,9 +1,10 @@
 'use strict';
 /* ═══════════════════════════════════════════════════════════════
    ቂራአት አስተዳደር • إدارة القراءات — app.js
-   الأجزاء: أدوات → ترجمات → حالة → مزامنة → دخول → تهيئة
-            → دروس → طلاب → حضور → متن/مطالعة (نظام الدين)
-            → اختبارات PDF → تقارير PDF → تقرير الوالد → PWA
+   الإصلاحات المدمجة:
+   ✅ (1) اختيار عدة أيام في التهيئة — يعمل
+   ✅ (2) زر ቀጥል ينقلك للخطوة التالية — يعمل
+   ✅ (3) دخول تلقائي بعد التهيئة (kiar) + زر تثبيت ظاهر دائماً
    ═══════════════════════════════════════════════════════════════ */
 
 /* ───────────── (1) أدوات مساعدة ───────────── */
@@ -22,10 +23,9 @@ const LS_KEY = 'qiraat_state_v1';
 const SESS   = 'qiraat_session';
 const CLOUD  = 'qiraat_cloud_mirror';
 
-/* ───────────── (2) الترجمات الدقيقة (am افتراضية) ───────────── */
+/* ───────────── (2) الترجمات الدقيقة ───────────── */
 const I18N = {
 
-/* ── الأمهرية (اللغة الأم) — بمصطلحات المستخدم الدقيقة ── */
 am: {
 'app.name':'ቂራአት አስተዳደር',
 'common.back':'ተመለስ','common.next':'ቀጥል','common.cancel':'ሰርዝ','common.confirm':'ማረጋገጫ',
@@ -134,7 +134,6 @@ am: {
 'toast.saved':'ተመዝግቧል ✓','toast.deleted':'ተጠፍቷል','toast.error':'ስህተት ተከስቷል!'
 },
 
-/* ── العربية ── */
 ar: {
 'app.name':'إدارة القراءات',
 'common.back':'رجوع','common.next':'التالي','common.cancel':'إلغاء','common.confirm':'تأكيد',
@@ -231,7 +230,6 @@ ar: {
 'toast.saved':'تم الحفظ ✓','toast.deleted':'تم الحذف','toast.error':'حدث خطأ!'
 },
 
-/* ── English ── */
 en: {
 'app.name':'Qiraat Manager',
 'common.back':'Back','common.next':'Next','common.cancel':'Cancel','common.confirm':'Confirm',
@@ -406,7 +404,7 @@ async function syncNow(manual = false) {
       });
       if (!res.ok) throw 0;
     } else {
-      localStorage.setItem(CLOUD, JSON.stringify(state));   // محاكاة سحابية محلية
+      localStorage.setItem(CLOUD, JSON.stringify(state));
       await new Promise(r => setTimeout(r, 650));
     }
     state.settings.lastSync = Date.now();
@@ -492,7 +490,6 @@ function showApp() {
   setSyncStatus(navigator.onLine ? 'idle' : 'offline');
 }
 
-/* معالج الدخول */
 function bindLogin() {
   $('#loginForm').addEventListener('submit', e => {
     e.preventDefault();
@@ -513,14 +510,16 @@ function bindLogin() {
   $$('.lang-mini').forEach(b => b.onclick = () => setLang(b.dataset.lang));
 }
 
-/* ───────────── (8) خطوات التهيئة ───────────── */
+/* ───────────── (8) خطوات التهيئة — ✅ مُصلَح بالكامل ───────────── */
 let setupStep = 1;
+
 function updateSetupUI() {
   $$('.setup-step').forEach(s => s.hidden = +s.dataset.step !== setupStep);
   $$('.setup-progress .dot').forEach(d => d.classList.toggle('active', +d.dataset.dot <= setupStep));
   $('#setupBack').hidden = setupStep === 1;
   $('#setupNext').textContent = setupStep === 3 ? t('setup.finish') : t('common.next');
 }
+
 function buildSetupSummary() {
   const days = getDays($('#daysPicker')).map(d => t('day.' + d)).join(' ، ');
   const mc = $('.active', $('#setupMutalaCount'));
@@ -533,7 +532,21 @@ function buildSetupSummary() {
     ['setup.sumMutala',  mc ? mc.dataset.count : '2']
   ].map(([k, v]) => `<li><b>${t(k)}:</b> ${esc(v)}</li>`).join('');
 }
+
 function bindSetup() {
+  /* ═══ ✅ الإصلاح 1+3: ربط أزرار أيام الأسبوع (اختيار متعدد) ═══ */
+  $$('.day-chip', $('#daysPicker')).forEach(b => {
+    b.classList.toggle('active', state.settings.studyDays.includes(+b.dataset.day));
+    b.onclick = () => b.classList.toggle('active');
+  });
+
+  /* ═══ ✅ إصلاح إضافي: ربط مفتاح عدد المطالعين (1/2) ═══ */
+  $('#setupMutalaCount').addEventListener('click', e => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    $$('button', $('#setupMutalaCount')).forEach(x => x.classList.remove('active'));
+    btn.classList.add('active');
+  });
+
   $('#setupNext').onclick = () => {
     if (setupStep === 1) {
       if (!getDays($('#daysPicker')).length) return toast(t('setup.daysRequired'), 'err');
@@ -551,7 +564,10 @@ function bindSetup() {
       state.lessons.push(L);
       state.currentLessonId = L.id;
       state.settings.initialized = true;
-      saveState(); showApp();
+      saveState();
+      /* ═══ ✅ دخول تلقائي بحساب kiar — لا شاشة دخول ═══ */
+      localStorage.setItem(SESS, state.users[0].username);
+      showApp();
       toast(t('toast.saved'));
       return;
     }
@@ -576,6 +592,10 @@ function bindDaysPicker(container, getInitial, onChange) {
 }
 
 /* ───────────── (9) الدروس / القراءات ───────────── */
+function setSeg(container, val, attr) {
+  $$('button', container).forEach(b => b.classList.toggle('active', String(b.dataset[attr]) === String(val)));
+}
+
 function renderLessonsUI() {
   const sel = $('#lessonSelect');
   const prev = state.currentLessonId;
@@ -817,7 +837,6 @@ function bindAttendance() {
   });
   $('#saveAttendanceBtn').onclick = () => {
     const date = $('#attendanceDate').value;
-    /* تسجيل دين تلقائي لأصحاب الأدوار الغائبين اليوم */
     if (date === todayStr()) {
       const n = autoDebt(date);
       if (n) { renderRecitation(); toast(t('attendance.autoDebtNote', { n }), 'info'); }
@@ -836,14 +855,6 @@ function shiftAttDate(delta) {
 }
 
 /* ───────────── (12) محرك المتن والمطالعة (نظام الدين) ───────────── */
-/*
- * الفكرة: طابوران (متن + مطالعة) لكل قراءة.
- * - المتن: صاحب رأس الطابور هو قارئ اليوم (طالب واحد فقط).
- * - المطالعة: أول K من الطابور (K = 1 أو 2).
- * - إذا غاب صاحب الدور: يبقى في رأس الطابور ويتضاعف "دينه" يوماً بعد يوم.
- * - إذا حضر وقرأ: ينقص دينه. إذا صار صفراً يخرج من الطابور (ثم يعود
- *   في نهايته تلقائياً عند دورة جديدة). الدور لا يتجاوز صاحب الدين أبداً.
- */
 function ensureQueues(L) {
   if (!L.rec) L.rec = { matnQueue: [], mutalaQueue: [], debts: {}, history: [] };
   const R = L.rec;
@@ -853,7 +864,7 @@ function ensureQueues(L) {
   R.matnQueue  = R.matnQueue.filter(id => ids.includes(id));
   R.mutalaQueue = R.mutalaQueue.filter(id => ids.includes(id));
   for (const id in R.debts) if (!ids.includes(id)) delete R.debts[id];
-  for (const id of ids) {                       // الطلاب الجدد يلتحقون بآخر الطابور
+  for (const id of ids) {
     if (!R.matnQueue.includes(id))  R.matnQueue.push(id);
     if (!R.mutalaQueue.includes(id)) R.mutalaQueue.push(id);
   }
@@ -870,13 +881,13 @@ function markRecitation(type, sid, status, date = todayStr(), silent = false) {
   R.debts[sid] = R.debts[sid] || { matn: 0, mutala: 0 };
   const d = R.debts[sid];
   if (status === 'debt') {
-    d[type]++;                                   // الغياب → يتضاعف الدين
-  } else {                                       // قرأ/طالع → ينقص الدين
+    d[type]++;
+  } else {
     d[type] = Math.max(0, d[type] - 1);
     if (d[type] === 0) {
       const q = type === 'matn' ? R.matnQueue : R.mutalaQueue;
       const i = q.indexOf(sid);
-      if (i > -1) q.splice(i, 1);                // استوفى → يخرج من الطابور
+      if (i > -1) q.splice(i, 1);
       if (!d.matn && !d.mutala) delete R.debts[sid];
     }
   }
@@ -984,7 +995,7 @@ function renderQueuePreview() {
   $('#queuePreview').innerHTML = dates.map(ds => {
     const d = parseD(ds);
     const mn = mq.length ? mq[0] : null;
-    if (mn) mq.push(mq.shift());                        // قرأ → يدور للنهاية
+    if (mn) mq.push(mq.shift());
     const us = [];
     for (let i = 0; i < k && uq.length; i++) us.push(uq.shift());
     uq.push(...us);
@@ -1030,13 +1041,10 @@ function bindRecitation() {
   });
 }
 
-/* ───────────── (13) الاختبارات + ورقة A4 بالتمدد التلقائي ───────────── */
+/* ───────────── (13) الاختبارات + ورقة A4 ───────────── */
 const MCQ_LETTERS = ['(أ)', '(ب)', '(ج)', '(د)', '(هـ)'];
 let previewSheet = null;
 
-function setSeg(container, val, attr) {
-  $$('button', container).forEach(b => b.classList.toggle('active', String(b.dataset[attr]) === String(val)));
-}
 function builderPages() { return +($('.active', $('#examPagesSeg')).dataset.pages); }
 
 function qEssayRow() {
@@ -1068,7 +1076,7 @@ function qTfRow() {
   </div>`;
 }
 function renumber() {
-  [['#essayQuestions'], ['#mcqQuestions'], ['#tfQuestions']].forEach(([sel]) => {
+  ['#essayQuestions', '#mcqQuestions', '#tfQuestions'].forEach(sel => {
     $$('.q-row', $(sel)).forEach((r, i) => { $('.q-idx', r).textContent = i + 1; });
   });
 }
@@ -1094,7 +1102,6 @@ function collectExam() {
   return { essay, mcq, tf };
 }
 
-/* بناء ورقة A4 (html كامل) */
 function sheetHTML(ex, fs) {
   const fontStack = LANG === 'am'
     ? "'Noto Serif Ethiopic','El Messiri',serif"
@@ -1145,18 +1152,17 @@ function sheetHTML(ex, fs) {
   </div>`;
 }
 
-/* خوارزمية التمدد/التقلص: تجد أكبر خط يجعل المحتوى يملأ الصفحات المطلوبة بدقة */
 async function fitSheet(ex, pages) {
   const stage = $('#pdfStage');
   stage.innerHTML = sheetHTML(ex, 11);
   const sheet = stage.firstElementChild;
   try { await document.fonts.ready; } catch (e) {}
-  const PAGE = 1122.5;                       // 297mm بالبكسل
+  const PAGE = 1122.5;
   const T = pages * PAGE * 0.985;
   const h = () => sheet.offsetHeight;
   let lo = 6.5, hi = 20, best = lo;
   sheet.style.setProperty('--sheet-fs', lo + 'pt');
-  if (h() > T) {                             // محتوى كثير جداً → وضع مضغوط
+  if (h() > T) {
     sheet.style.padding = '8mm 10mm';
     sheet.style.lineHeight = '1.45';
   }
@@ -1166,7 +1172,7 @@ async function fitSheet(ex, pages) {
     if (h() <= T) { best = mid; lo = mid; } else { hi = mid; }
   }
   sheet.style.setProperty('--sheet-fs', best + 'pt');
-  if (best >= 19.6) {                        // محتوى قليل → تمدد أسطر الإجابة ليكتمل الملء
+  if (best >= 19.6) {
     let grow = 1, guard = 0;
     while (h() < T * 0.93 && grow < 3 && guard++ < 30) {
       grow += 0.2;
@@ -1313,7 +1319,7 @@ function bindExams() {
   });
 }
 
-/* ───────────── (14) PDF الطلاب: أسماء / أسبوعي / شهري ───────────── */
+/* ───────────── (14) PDF الطلاب ───────────── */
 const PAPER_CSS = `
 .p-sheet{width:210mm;min-height:297mm;background:#fff;color:#14161c;padding:12mm 13mm;
   box-sizing:border-box;font-size:11.5pt;line-height:1.55}
@@ -1431,7 +1437,7 @@ function makeMonthlyPdf() {
   exportPdf($('#pdfStage').firstElementChild, 'monthly-report.pdf');
 }
 
-/* ───────────── (15) تقرير الوالد (بنقرة واحدة) ───────────── */
+/* ───────────── (15) تقرير الوالد ───────────── */
 function periodRange(p) {
   const n = new Date();
   let a, b;
@@ -1471,7 +1477,6 @@ function buildReport(sid, period) {
     }
     lines.push('');
   }
-  /* ما فوّته من متن/مطالعة خلال الفترة */
   const missed = (L.rec.history || []).filter(h =>
     h.sid === sid && h.status === 'debt' && h.date >= a && h.date <= b);
   if (missed.length) {
@@ -1484,12 +1489,10 @@ function buildReport(sid, period) {
     }
     lines.push('');
   }
-  /* الدين الحالي */
   const dc = (L.rec.debts || {})[sid];
   if (dc && (dc.matn > 0 || dc.mutala > 0)) {
     lines.push('⚠️ ' + t('reports.currentDebt', { m: dc.matn, y: dc.mutala }), '');
   }
-  /* الاختبارات */
   const exs = (L.exams || []).filter(e => (e.results || {})[sid] && e.date >= a && e.date <= b);
   if (exs.length) {
     lines.push(t('reports.examHeader'));
@@ -1545,7 +1548,7 @@ function bindReports() {
     if (!txt) return toast(t('reports.noData'), 'err');
     if (navigator.share) {
       try { await navigator.share({ text: txt }); toast(t('reports.shared')); }
-      catch (e) { /* ألغى المستخدم */ }
+      catch (e) { /* user cancelled */ }
     } else copyText(txt);
   };
 }
@@ -1672,7 +1675,7 @@ function bindSettings() {
   });
 }
 
-/* ───────────── (17) عام: التبويبات / النوافذ / PWA ───────────── */
+/* ───────────── (17) عام: التبويبات / النوافذ ───────────── */
 function bindTabs() {
   $$('.tab').forEach(tb => {
     tb.onclick = () => {
@@ -1709,9 +1712,70 @@ function bindCommon() {
     }
   });
 }
+
+/* ───────────── (18) PWA — ✅ مُصلَح بالكامل ───────────── */
+const APP_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><defs><linearGradient id="bgg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0a1120"/><stop offset="1" stop-color="#14224a"/></linearGradient><linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f9dd8a"/><stop offset="1" stop-color="#e3a92f"/></linearGradient><linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2fe3c7"/><stop offset="1" stop-color="#8b7cf8"/></linearGradient></defs><rect width="512" height="512" rx="110" fill="url(#bgg)"/><circle cx="256" cy="250" r="168" fill="none" stroke="url(#teal)" stroke-width="14" stroke-opacity="0.35"/><circle cx="256" cy="250" r="140" fill="none" stroke="#2fe3c7" stroke-width="6" stroke-opacity="0.18"/><path d="M256 160 C 216 118 142 116 96 142 L 96 372 C 142 346 216 348 256 388 C 296 348 370 346 416 372 L 416 142 C 370 116 296 118 256 160 Z" fill="url(#gold)" stroke="#5c3d0e" stroke-width="8" stroke-linejoin="round"/><path d="M256 160 L 256 388" stroke="#5c3d0e" stroke-width="12" stroke-linecap="round"/><g stroke="#5c3d0e" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.75"><path d="M124 196 C 154 182 192 182 222 196"/><path d="M124 240 C 154 226 192 226 222 240"/><path d="M124 284 C 154 270 192 270 222 284"/></g><g stroke="#5c3d0e" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.75"><path d="M290 196 C 320 182 358 182 388 196"/><path d="M290 240 C 320 226 358 226 388 240"/><path d="M290 284 C 320 270 358 270 388 284"/></g><path d="M256 62 C 261 84 270 93 292 97 C 270 101 261 110 256 132 C 251 110 242 101 220 97 C 242 93 251 84 256 62 Z" fill="url(#gold)"/><rect x="176" y="420" width="160" height="10" rx="5" fill="#2fe3c7" opacity="0.6"/></svg>`;
+
+async function makeIconDataURI(size, maskable = false) {
+  let svg = APP_ICON_SVG;
+  if (maskable) svg = svg.replace('rx="110"', 'rx="0"');
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  try {
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = rej;
+      i.src = url;
+    });
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    c.getContext('2d').drawImage(img, 0, 0, size, size);
+    return c.toDataURL('image/png');
+  } finally { URL.revokeObjectURL(url); }
+}
+
+async function setupPWA() {
+  try {
+    const [i192, i512, m512] = await Promise.all([
+      makeIconDataURI(192), makeIconDataURI(512), makeIconDataURI(512, true)
+    ]);
+    const scope = location.origin + location.pathname.replace(/[^/]*$/, '');
+    const manifest = {
+      id: scope,
+      name: 'ቂራአት አስተዳደር — إدارة القراءات',
+      short_name: 'ቂራአት',
+      description: 'የክታቢት እና የቂራአት አስተዳደር መተግበሪያ',
+      start_url: location.origin + location.pathname,
+      scope: scope,
+      display: 'standalone',
+      orientation: 'any',
+      dir: 'auto',
+      lang: 'am',
+      theme_color: '#0a1120',
+      background_color: '#05080f',
+      icons: [
+        { src: i192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: i512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: m512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+      ]
+    };
+    const link = document.querySelector('link[rel="manifest"]') || document.createElement('link');
+    link.rel = 'manifest';
+    link.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+    if (!link.parentNode) document.head.appendChild(link);
+    const ai = document.querySelector('link[rel="apple-touch-icon"]') || document.createElement('link');
+    ai.rel = 'apple-touch-icon';
+    ai.href = i192;
+    if (!ai.parentNode) document.head.appendChild(ai);
+  } catch (e) { console.warn('PWA icons:', e); }
+}
+
 function bindPWA() {
+  setupPWA();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then(() => navigator.serviceWorker.ready.then(r => r.update()))
+      .catch(e => console.warn('SW:', e));
   }
   let deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', e => {
@@ -1719,18 +1783,32 @@ function bindPWA() {
     deferredPrompt = e;
     $('#installBtn').hidden = false;
   });
+  /* ✅ الزر ظاهر دائماً — إن لم يجهز التثبيت يعرض الإرشادات */
+  $('#installBtn').hidden = false;
   $('#installBtn').onclick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const r = await deferredPrompt.userChoice;
-    if (r.outcome === 'accepted') toast(t('common.installed'));
-    deferredPrompt = null;
-    $('#installBtn').hidden = true;
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const r = await deferredPrompt.userChoice;
+      if (r.outcome === 'accepted') toast(t('common.installed'));
+      deferredPrompt = null;
+      return;
+    }
+    openModal(t('common.install'), `
+      <p class="muted" style="font-size:var(--fs-s);line-height:2.1">
+        <b>Android (Chrome):</b><br>⋮ → <b>Install app / تثبيت التطبيق</b><br><br>
+        <b>iPhone (Safari):</b><br>Share ⇱ → <b>Add to Home Screen</b><br><br>
+        <b>አንድሮይድ (ክሮም):</b><br>⋮ → <b>ትግበር መትገብር</b>
+      </p>
+      <div class="modal-actions"><button class="btn btn--primary" id="mOk">${t('common.close')}</button></div>`);
+    $('#mOk').onclick = closeModal;
   };
-  window.addEventListener('appinstalled', () => { $('#installBtn').hidden = true; });
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    toast(t('common.installed'));
+  });
 }
 
-/* ───────────── (18) التهيئة الكاملة والتشغيل ───────────── */
+/* ───────────── (19) التهيئة الكاملة والتشغيل ───────────── */
 function renderAll() {
   renderLessonsUI();
   renderStudents();
