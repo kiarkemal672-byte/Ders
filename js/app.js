@@ -1,10 +1,12 @@
 'use strict';
 /* ═══════════════════════════════════════════════════════════════
-   ቂራአት አስተዳደር • إدارة القراءات — app.js
+   ቂራአት አስተዳደር • إدارة القراءات — app.js (v1.2 — مصحح)
+   
    الإصلاحات المدمجة:
-   ✅ (1) اختيار عدة أيام في التهيئة — يعمل
-   ✅ (2) زر ቀጥል ينقلك للخطوة التالية — يعمل
-   ✅ (3) دخول تلقائي بعد التهيئة (kiar) + زر تثبيت ظاهر دائماً
+   ✅ (1) اختيار عدة أيام — يعمل
+   ✅ (2) زر ቀጥል ينقلك — يعصل
+   ✅ (3) دخول تلقائي بعد التهيئة (kiar)
+   ✅ (4) حذف setupPWA() التي كانت تكسر التثبيت — sw.js يولّد الأيقونات الآن
    ═══════════════════════════════════════════════════════════════ */
 
 /* ───────────── (1) أدوات مساعدة ───────────── */
@@ -26,6 +28,7 @@ const CLOUD  = 'qiraat_cloud_mirror';
 /* ───────────── (2) الترجمات الدقيقة ───────────── */
 const I18N = {
 
+/* ── الأمهرية (اللغة الأم) ── */
 am: {
 'app.name':'ቂራአት አስተዳደር',
 'common.back':'ተመለስ','common.next':'ቀጥል','common.cancel':'ሰርዝ','common.confirm':'ማረጋገጫ',
@@ -134,6 +137,7 @@ am: {
 'toast.saved':'ተመዝግቧል ✓','toast.deleted':'ተጠፍቷል','toast.error':'ስህተት ተከስቷል!'
 },
 
+/* ── العربية ── */
 ar: {
 'app.name':'إدارة القراءات',
 'common.back':'رجوع','common.next':'التالي','common.cancel':'إلغاء','common.confirm':'تأكيد',
@@ -230,6 +234,7 @@ ar: {
 'toast.saved':'تم الحفظ ✓','toast.deleted':'تم الحذف','toast.error':'حدث خطأ!'
 },
 
+/* ── English ── */
 en: {
 'app.name':'Qiraat Manager',
 'common.back':'Back','common.next':'Next','common.cancel':'Cancel','common.confirm':'Confirm',
@@ -510,7 +515,7 @@ function bindLogin() {
   $$('.lang-mini').forEach(b => b.onclick = () => setLang(b.dataset.lang));
 }
 
-/* ───────────── (8) خطوات التهيئة — ✅ مُصلَح بالكامل ───────────── */
+/* ───────────── (8) خطوات التهيئة — ✅ مُصلَح ───────────── */
 let setupStep = 1;
 
 function updateSetupUI() {
@@ -540,7 +545,7 @@ function bindSetup() {
     b.onclick = () => b.classList.toggle('active');
   });
 
-  /* ═══ ✅ إصلاح إضافي: ربط مفتاح عدد المطالعين (1/2) ═══ */
+  /* ═══ ✅ ربط مفتاح عدد المطالعين (1/2) ═══ */
   $('#setupMutalaCount').addEventListener('click', e => {
     const btn = e.target.closest('button'); if (!btn) return;
     $$('button', $('#setupMutalaCount')).forEach(x => x.classList.remove('active'));
@@ -565,7 +570,7 @@ function bindSetup() {
       state.currentLessonId = L.id;
       state.settings.initialized = true;
       saveState();
-      /* ═══ ✅ دخول تلقائي بحساب kiar — لا شاشة دخول ═══ */
+      /* ═══ ✅ دخول تلقائي بحساب kiar ═══ */
       localStorage.setItem(SESS, state.users[0].username);
       showApp();
       toast(t('toast.saved'));
@@ -611,7 +616,6 @@ function switchLesson(id) {
   renderAll();
 }
 function openLessonModal() {
-  const L = cur();
   openModal(t('lessons.title'), `
     <div class="field"><label>${t('lessons.name')}</label>
       <input id="mLName" placeholder="${t('lessons.namePh')}"></div>
@@ -854,7 +858,7 @@ function shiftAttDate(delta) {
   renderAttendance();
 }
 
-/* ───────────── (12) محرك المتن والمطالعة (نظام الدين) ───────────── */
+/* ───────────── (12) محرك المتن والمطالعة ───────────── */
 function ensureQueues(L) {
   if (!L.rec) L.rec = { matnQueue: [], mutalaQueue: [], debts: {}, history: [] };
   const R = L.rec;
@@ -1675,7 +1679,7 @@ function bindSettings() {
   });
 }
 
-/* ───────────── (17) عام: التبويبات / النوافذ ───────────── */
+/* ───────────── (17) عام ───────────── */
 function bindTabs() {
   $$('.tab').forEach(tb => {
     tb.onclick = () => {
@@ -1713,65 +1717,9 @@ function bindCommon() {
   });
 }
 
-/* ───────────── (18) PWA — ✅ مُصلَح بالكامل ───────────── */
-const APP_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><defs><linearGradient id="bgg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0a1120"/><stop offset="1" stop-color="#14224a"/></linearGradient><linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f9dd8a"/><stop offset="1" stop-color="#e3a92f"/></linearGradient><linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2fe3c7"/><stop offset="1" stop-color="#8b7cf8"/></linearGradient></defs><rect width="512" height="512" rx="110" fill="url(#bgg)"/><circle cx="256" cy="250" r="168" fill="none" stroke="url(#teal)" stroke-width="14" stroke-opacity="0.35"/><circle cx="256" cy="250" r="140" fill="none" stroke="#2fe3c7" stroke-width="6" stroke-opacity="0.18"/><path d="M256 160 C 216 118 142 116 96 142 L 96 372 C 142 346 216 348 256 388 C 296 348 370 346 416 372 L 416 142 C 370 116 296 118 256 160 Z" fill="url(#gold)" stroke="#5c3d0e" stroke-width="8" stroke-linejoin="round"/><path d="M256 160 L 256 388" stroke="#5c3d0e" stroke-width="12" stroke-linecap="round"/><g stroke="#5c3d0e" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.75"><path d="M124 196 C 154 182 192 182 222 196"/><path d="M124 240 C 154 226 192 226 222 240"/><path d="M124 284 C 154 270 192 270 222 284"/></g><g stroke="#5c3d0e" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.75"><path d="M290 196 C 320 182 358 182 388 196"/><path d="M290 240 C 320 226 358 226 388 240"/><path d="M290 284 C 320 270 358 270 388 284"/></g><path d="M256 62 C 261 84 270 93 292 97 C 270 101 261 110 256 132 C 251 110 242 101 220 97 C 242 93 251 84 256 62 Z" fill="url(#gold)"/><rect x="176" y="420" width="160" height="10" rx="5" fill="#2fe3c7" opacity="0.6"/></svg>`;
-
-async function makeIconDataURI(size, maskable = false) {
-  let svg = APP_ICON_SVG;
-  if (maskable) svg = svg.replace('rx="110"', 'rx="0"');
-  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
-  try {
-    const img = await new Promise((res, rej) => {
-      const i = new Image();
-      i.onload = () => res(i);
-      i.onerror = rej;
-      i.src = url;
-    });
-    const c = document.createElement('canvas');
-    c.width = c.height = size;
-    c.getContext('2d').drawImage(img, 0, 0, size, size);
-    return c.toDataURL('image/png');
-  } finally { URL.revokeObjectURL(url); }
-}
-
-async function setupPWA() {
-  try {
-    const [i192, i512, m512] = await Promise.all([
-      makeIconDataURI(192), makeIconDataURI(512), makeIconDataURI(512, true)
-    ]);
-    const scope = location.origin + location.pathname.replace(/[^/]*$/, '');
-    const manifest = {
-      id: scope,
-      name: 'ቂራአት አስተዳደር — إدارة القراءات',
-      short_name: 'ቂራአት',
-      description: 'የክታብ እና የቂራአት አስተዳደር መተግበሪያ',
-      start_url: location.origin + location.pathname,
-      scope: scope,
-      display: 'standalone',
-      orientation: 'any',
-      dir: 'auto',
-      lang: 'am',
-      theme_color: '#0a1120',
-      background_color: '#05080f',
-      icons: [
-        { src: i192, sizes: '192x192', type: 'image/png', purpose: 'any' },
-        { src: i512, sizes: '512x512', type: 'image/png', purpose: 'any' },
-        { src: m512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
-      ]
-    };
-    const link = document.querySelector('link[rel="manifest"]') || document.createElement('link');
-    link.rel = 'manifest';
-    link.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
-    if (!link.parentNode) document.head.appendChild(link);
-    const ai = document.querySelector('link[rel="apple-touch-icon"]') || document.createElement('link');
-    ai.rel = 'apple-touch-icon';
-    ai.href = i192;
-    if (!ai.parentNode) document.head.appendChild(ai);
-  } catch (e) { console.warn('PWA icons:', e); }
-}
-
+/* ───────────── (18) PWA — ✅ مصحح (بلا data URI) ───────────── */
 function bindPWA() {
-  setupPWA();
+  /* ✅ لا نستبدل manifest.json — يبقى الملف الحقيقي يعمل */
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
       .then(() => navigator.serviceWorker.ready.then(r => r.update()))
@@ -1783,7 +1731,7 @@ function bindPWA() {
     deferredPrompt = e;
     $('#installBtn').hidden = false;
   });
-  /* ✅ الزر ظاهر دائماً — إن لم يجهز التثبيت يعرض الإرشادات */
+  /* ✅ الزر ظاهر دائماً */
   $('#installBtn').hidden = false;
   $('#installBtn').onclick = async () => {
     if (deferredPrompt) {
@@ -1793,6 +1741,7 @@ function bindPWA() {
       deferredPrompt = null;
       return;
     }
+    /* لم يظهر إشعار التثبيت بعد → نعرض الإرشادات */
     openModal(t('common.install'), `
       <p class="muted" style="font-size:var(--fs-s);line-height:2.1">
         <b>Android (Chrome):</b><br>⋮ → <b>Install app / تثبيت التطبيق</b><br><br>
@@ -1808,7 +1757,7 @@ function bindPWA() {
   });
 }
 
-/* ───────────── (19) التهيئة الكاملة والتشغيل ───────────── */
+/* ───────────── (19) التهيئة والتشغيل ───────────── */
 function renderAll() {
   renderLessonsUI();
   renderStudents();
