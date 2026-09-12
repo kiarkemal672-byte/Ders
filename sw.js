@@ -9,7 +9,7 @@
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
 
-const VERSION       = 'v1.0.0';
+const VERSION       = 'v1.1.0';
 const SHELL_CACHE   = 'qiraat-shell-'   + VERSION;
 const RUNTIME_CACHE = 'qiraat-runtime-' + VERSION;
 const FONT_CACHE    = 'qiraat-fonts-'   + VERSION;
