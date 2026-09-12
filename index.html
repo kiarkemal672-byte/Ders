@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#0a1120" />
+<meta name="description" content="ቂራአት አስተዳደር • إدارة القراءات والكتاتيب • Katatib Study Manager PWA" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="ቂራአት" />
+<title>ቂራአት አስተዳደር • إدارة القراءات</title>
+
+<!-- ══════════════ PWA ══════════════ -->
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+<!-- ══════════════ الخطوط (غير تقليدية): عربية + أمهرية + لاتينية ══════════════ -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=El+Messiri:wght@400;500;600;700&family=Noto+Serif+Ethiopic:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<!-- ══════════════ html2pdf لتوليد PDF ══════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
+
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     الخلفية المتحركة (Mesh + Orbs) — تُنسّق في style.css
+════════════════════════════════════════════════════════════ -->
+<div class="bg-decor" aria-hidden="true">
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div>
+  <div class="bg-grid"></div>
+  <div class="bg-noise"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     (1) شاشة تسجيل الدخول — الحساب الافتراضي kiar / 1111
+════════════════════════════════════════════════════════════ -->
+<section id="loginScreen" class="screen screen--login">
+  <div class="login-card glass">
+
+    <div class="login-logo" aria-hidden="true">
+      <svg viewBox="0 0 64 64" width="72" height="72">
+        <path d="M32 14 C26 8 16 8 8 12 L8 50 C16 46 26 46 32 52 C38 46 48 46 56 50 L56 12 C48 8 38 8 32 14 Z"
+              fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M32 14 L32 52" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <path d="M14 22 C18 20 22 20 26 22 M14 30 C18 28 22 28 26 30 M14 38 C18 36 22 36 26 38"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <path d="M38 22 C42 20 46 20 50 22 M38 30 C42 28 46 28 50 30 M38 38 C42 36 46 36 50 38"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </svg>
+    </div>
+
+    <h1 class="login-title" data-i18n="app.name">إدارة القراءات</h1>
+    <p class="login-sub" data-i18n="login.subtitle">سجّل الدخول للمتابعة</p>
+
+    <form id="loginForm" autocomplete="off" novalidate>
+      <div class="field">
+        <label for="loginUsername" data-i18n="login.username">اسم المستخدم</label>
+        <div class="input-wrap">
+          <span class="input-ico">👤</span>
+          <input type="text" id="loginUsername" required />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="loginPassword" data-i18n="login.password">كلمة المرور</label>
+        <div class="input-wrap">
+          <span class="input-ico">🔑</span>
+          <input type="password" id="loginPassword" required />
+          <button type="button" id="togglePass" class="ghost-ico" aria-label="show password">👁️</button>
+        </div>
+      </div>
+
+      <p id="loginError" class="form-error" hidden></p>
+
+      <button type="submit" class="btn btn--primary btn--block" id="loginBtn" data-i18n="login.enter">دخول</button>
+    </form>
+
+    <div class="login-lang" role="group" aria-label="language">
+      <button type="button" class="lang-mini" data-lang="am">አማርኛ</button>
+      <button type="button" class="lang-mini" data-lang="ar">العربية</button>
+      <button type="button" class="lang-mini" data-lang="en">English</button>
+    </div>
+
+    <p class="login-hint" data-i18n="login.hint">الحساب الافتراضي: kiar / 1111 — غيّره من الإعدادات</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     (2) شاشة التهيئة الأولى: الأيام ← اسم القراءة/الدرس ← تأكيد
+════════════════════════════════════════════════════════════ -->
+<section id="setupScreen" class="screen screen--setup" hidden>
+  <div class="setup-card glass">
+
+    <div class="setup-progress" aria-hidden="true">
+      <span class="dot" data-dot="1"></span>
+      <span class="dot" data-dot="2"></span>
+      <span class="dot" data-dot="3"></span>
+    </div>
+
+    <!-- الخطوة 1: أيام الدرس -->
+    <div class="setup-step" data-step="1">
+      <h2 data-i18n="setup.welcome">مرحباً! لنجهّز درسك</h2>
+      <p class="muted" data-i18n="setup.step1desc">اختر أيام الدروس في الأسبوع</p>
+
+      <div class="field">
+        <label for="setupTeacher" data-i18n="setup.teacher">اسم المعلم</label>
+        <input type="text" id="setupTeacher" />
+      </div>
+
+      <div class="field">
+        <label for="setupCenter" data-i18n="setup.center">اسم الكتّاب / المركز (اختياري)</label>
+        <input type="text" id="setupCenter" />
+      </div>
+
+      <div class="field">
+        <label data-i18n="setup.daysLabel">أيام الدرس</label>
+        <div class="days-picker" id="daysPicker">
+          <button type="button" class="day-chip" data-day="0" data-i18n="day.0">الأحد</button>
+          <button type="button" class="day-chip" data-day="1" data-i18n="day.1">الاثنين</button>
+          <button type="button" class="day-chip" data-day="2" data-i18n="day.2">الثلاثاء</button>
+          <button type="button" class="day-chip" data-day="3" data-i18n="day.3">الأربعاء</button>
+          <button type="button" class="day-chip" data-day="4" data-i18n="day.4">الخميس</button>
+          <button type="button" class="day-chip" data-day="5" data-i18n="day.5">الجمعة</button>
+          <button type="button" class="day-chip" data-day="6" data-i18n="day.6">السبت</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- الخطوة 2: القراءة الأولى -->
+    <div class="setup-step" data-step="2" hidden>
+      <h2 data-i18n="setup.readingTitle">أضف قراءتك / درسك الأول</h2>
+      <p class="muted" data-i18n="setup.step2desc">كل قراءة مستقلة تماماً بطلابها وسجلاتها</p>
+
+      <div class="field">
+        <label for="setupReadingName" data-i18n="setup.readingName">اسم القراءة / الدرس</label>
+        <input type="text" id="setupReadingName" required
+               data-i18n-placeholder="setup.readingNamePh" placeholder="مثال: قراءة تحفة الأطفال" />
+      </div>
+
+      <div class="field">
+        <label for="setupBookName" data-i18n="setup.bookName">اسم الكتاب / المتن</label>
+        <input type="text" id="setupBookName"
+               data-i18n-placeholder="setup.bookNamePh" placeholder="مثال: تحفة الأطفال" />
+      </div>
+
+      <div class="field">
+        <label data-i18n="setup.mutalaCount">عدد المطالعين في اليوم</label>
+        <div class="seg" id="setupMutalaCount">
+          <button type="button" data-count="1">1</button>
+          <button type="button" data-count="2" class="active">2</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- الخطوة 3: التأكيد -->
+    <div class="setup-step" data-step="3" hidden>
+      <h2 data-i18n="setup.doneTitle">جاهز! 🎉</h2>
+      <ul class="setup-summary" id="setupSummary"></ul>
+    </div>
+
+    <div class="setup-nav">
+      <button type="button" class="btn btn--ghost" id="setupBack" data-i18n="common.back" hidden>رجوع</button>
+      <button type="button" class="btn btn--primary" id="setupNext" data-i18n="common.next">التالي</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     (3) التطبيق الرئيسي
+════════════════════════════════════════════════════════════ -->
+<section id="appScreen" class="screen screen--app" hidden>
+
+  <!-- ─────────── الرأس العلوي: القراءات + المزامنة + التثبيت + اللغة ─────────── -->
+  <header class="app-header glass">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">📖</span>
+      <span class="brand-name" id="brandLessonName">—</span>
+    </div>
+
+    <div class="header-actions">
+      <select id="lessonSelect" class="lesson-select" aria-label="lessons"></select>
+      <button type="button" class="icon-btn" id="addLessonBtn" data-i18n-title="lessons.add" title="إضافة قراءة / درس">➕</button>
+
+      <span id="syncStatus" class="sync-pill" data-state="idle">
+        <span class="sync-ico" aria-hidden="true">☁️</span>
+        <span class="sync-txt" data-i18n="sync.idle">متزامن</span>
+      </span>
+
+      <button type="button" class="icon-btn" id="installBtn" hidden data-i18n-title="common.install" title="تثبيت التطبيق">⬇️</button>
+
+      <select id="langSelect" class="lang-select" aria-label="language">
+        <option value="am">አማርኛ</option>
+        <option value="ar">العربية</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- ─────────── شريط التبويبات ─────────── -->
+  <nav class="tab-nav" id="tabNav">
+    <button type="button" class="tab active" data-view="students" data-i18n="nav.students">الطلاب</button>
+    <button type="button" class="tab" data-view="attendance" data-i18n="nav.attendance">الحضور</button>
+    <button type="button" class="tab" data-view="recitation" data-i18n="nav.recitation">المتن والمطالعة</button>
+    <button type="button" class="tab" data-view="exams" data-i18n="nav.exams">الاختبارات</button>
+    <button type="button" class="tab" data-view="reports" data-i18n="nav.reports">التقارير</button>
+    <button type="button" class="tab" data-view="settings" data-i18n="nav.settings">الإعدادات</button>
+  </nav>
+
+  <main class="views" id="views">
+
+    <!-- ════════════ قسم الطلاب ════════════ -->
+    <section class="view" id="view-students" data-view="students">
+      <div class="view-head">
+        <h2 data-i18n="students.title">إدارة الطلاب</h2>
+        <div class="view-stats">
+          <span class="chip chip--blue"><b id="studentsCount">0</b> <span data-i18n="students.count">طالب</span></span>
+        </div>
+      </div>
+
+      <!-- إنشاء طالب جديد: الاسم، الأب، هاتف المتابع + الرقم التسلسلي -->
+      <div class="card">
+        <h3 class="card-title" data-i18n="students.addTitle">إنشاء طالب جديد</h3>
+        <form id="addStudentForm" class="form-grid" autocomplete="off">
+          <input type="hidden" id="studentEditId" />
+
+          <div class="field">
+            <label for="studentName" data-i18n="students.name">اسم الطالب</label>
+            <input type="text" id="studentName" required
+                   data-i18n-placeholder="students.namePh" placeholder="مثال: محمد أحمد" />
+          </div>
+
+          <div class="field">
+            <label for="studentFather" data-i18n="students.father">اسم الأب</label>
+            <input type="text" id="studentFather" required
+                   data-i18n-placeholder="students.fatherPh" placeholder="مثال: أحمد" />
+          </div>
+
+          <div class="field">
+            <label for="studentPhone" data-i18n="students.phone">هاتف الوالد / المتابع</label>
+            <div class="input-wrap">
+              <span class="input-ico">📞</span>
+              <input type="tel" id="studentPhone" required placeholder="+2519..." />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="studentGuardian" data-i18n="students.guardian">صفة المتابع</label>
+            <select id="studentGuardian">
+              <option value="father" data-i18n="students.gFather">الأب</option>
+              <option value="mother" data-i18n="students.gMother">الأم</option>
+              <option value="guardian" data-i18n="students.gGuardian">وصي</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="studentSeq" data-i18n="students.seq">الرقم التسلسلي (تلقائي)</label>
+            <input type="text" id="studentSeq" class="readonly" readonly />
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn--ghost" id="studentCancel" data-i18n="common.cancel" hidden>إلغاء</button>
+            <button type="submit" class="btn btn--primary" id="studentSubmit" data-i18n="students.save">إضافة الطالب</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="toolbar">
+        <input type="search" id="studentSearch" data-i18n-placeholder="students.search" placeholder="بحث باسم الطالب..." />
+        <div class="pdf-btns">
+          <button type="button" class="btn btn--soft" id="pdfNamesBtn">📄 <span data-i18n="pdf.namesOnly">أسماء فقط PDF</span></button>
+          <button type="button" class="btn btn--soft" id="pdfWeeklyBtn">🗓 <span data-i18n="pdf.weekly">تفاصيل أسبوعية PDF</span></button>
+          <button type="button" class="btn btn--soft" id="pdfMonthlyBtn">📅 <span data-i18n="pdf.monthly">تفاصيل شهرية PDF</span></button>
+        </div>
+      </div>
+
+      <div id="studentsList" class="students-list"></div>
+      <p id="studentsEmpty" class="empty" data-i18n="students.empty" hidden>لا يوجد طلاب بعد — أضف أول طالب 🌱</p>
+    </section>
+
+    <!-- ════════════ قسم الحضور اليومي ════════════ -->
+    <section class="view" id="view-attendance" data-view="attendance" hidden>
+      <div class="view-head">
+        <h2 data-i18n="attendance.title">الحضور اليومي</h2>
+        <div class="view-stats">
+          <span class="chip chip--green">✅ <b id="attPresentCount">0</b></span>
+          <span class="chip chip--red">❌ <b id="attAbsentCount">0</b></span>
+          <span class="chip chip--amber">⏰ <b id="attLateCount">0</b></span>
+          <span class="chip chip--violet">📝 <b id="attNoBookCount">0</b></span>
+        </div>
+      </div>
+
+      <div class="card att-controls">
+        <div class="date-nav">
+          <button type="button" class="icon-btn" id="attPrevDay" aria-label="previous day">‹</button>
+          <input type="date" id="attendanceDate" />
+          <button type="button" class="icon-btn" id="attNextDay" aria-label="next day">›</button>
+        </div>
+        <span class="day-name" id="attendanceDayName">—</span>
+        <span id="attendanceSavedBadge" class="save-badge" hidden data-i18n="attendance.saved">محفوظ ✓</span>
+      </div>
+
+      <!-- الصفوف تُبنى ديناميكياً: حضور✅/غياب❌ + تأخير⏰ بالدقائق + كتاب📝 -->
+      <div id="attendanceList" class="att-list"></div>
+      <p id="attendanceEmpty" class="empty" data-i18n="attendance.empty" hidden>أضف طلاباً أولاً من قسم الطلاب</p>
+
+      <div class="sticky-save">
+        <button type="button" class="btn btn--primary btn--block" id="saveAttendanceBtn" data-i18n="attendance.save">حفظ حضور اليوم</button>
+      </div>
+    </section>
+
+    <!-- ════════════ قسم المتن والمطالعة (نظام الدين) ════════════ -->
+    <section class="view" id="view-recitation" data-view="recitation" hidden>
+      <div class="view-head">
+        <h2 data-i18n="recitation.title">المتن والمطالعة</h2>
+        <div class="view-stats">
+          <span class="chip chip--blue">📜 <span data-i18n="recitation.matn">قارئ المتن اليوم</span>: <b id="matnTodayName">—</b></span>
+        </div>
+      </div>
+
+      <div class="card today-panel">
+        <div class="date-line" id="recitationDate">—</div>
+
+        <div class="slot matn-slot">
+          <h3 data-i18n="recitation.matnSlot">قراءة المتن — طالب واحد فقط اليوم</h3>
+          <div id="matnSlot" class="slot-body"></div>
+        </div>
+
+        <div class="slot mutala-slot">
+          <h3 data-i18n="recitation.mutalaSlot">المطالعة — طالب أو طالبان اليوم</h3>
+          <div id="mutalaSlots" class="slot-body"></div>
+        </div>
+
+        <div class="seg-wrap">
+          <span data-i18n="recitation.mutalaPerDay">عدد المطالعين في اليوم</span>
+          <div class="seg" id="mutalaPerDaySeg">
+            <button type="button" data-count="1">1</button>
+            <button type="button" data-count="2" class="active">2</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card debt-panel">
+        <h3 class="card-title">⚖️ <span data-i18n="recitation.debtTitle">الديون المتراكمة</span> <span class="badge" id="debtCount">0</span></h3>
+        <div id="debtList" class="debt-list"></div>
+        <p id="debtEmpty" class="empty" data-i18n="recitation.debtEmpty" hidden>لا ديون — بارك الله فيكم 🎉</p>
+      </div>
+
+      <div class="card queue-panel">
+        <h3 class="card-title" data-i18n="recitation.queueTitle">ترتيب الأدوار القادمة</h3>
+        <div id="queuePreview" class="queue-ol"></div>
+      </div>
+
+      <div class="card history-panel">
+        <h3 class="card-title" data-i18n="recitation.historyTitle">سجل القراءات</h3>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th data-i18n="common.date">التاريخ</th>
+                <th data-i18n="recitation.type">النوع</th>
+                <th data-i18n="students.name">الطالب</th>
+                <th data-i18n="common.status">الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="recitationHistoryBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════ قسم الاختبارات ════════════ -->
+    <section class="view" id="view-exams" data-view="exams" hidden>
+      <div class="view-head">
+        <h2 data-i18n="exams.title">الاختبارات</h2>
+        <span class="chip chip--gold">🏅 <b id="examsCount">0</b></span>
+      </div>
+
+      <div class="card exam-cta">
+        <button type="button" class="btn btn--primary btn--big" id="createExamBtn">🖨️ <span data-i18n="exams.create">إنشاء اختبار PDF</span></button>
+        <p class="muted" data-i18n="exams.createHint">صفحة واحدة أو صفحتان فقط — لن يتجاوزها أبداً، ويتمدد/يتقلّص ليملأها تماماً</p>
+      </div>
+
+      <div id="examsList" class="exams-list"></div>
+
+      <!-- ── صانع الاختبارات (Overlay) ── -->
+      <div class="overlay" id="examBuilder" hidden>
+        <div class="overlay-card glass">
+          <div class="overlay-head">
+            <h3 data-i18n="exams.builderTitle">صانع الاختبارات</h3>
+            <button type="button" class="icon-btn" id="examBuilderClose">✕</button>
+          </div>
+
+          <div class="builder-meta form-grid">
+            <div class="field">
+              <label data-i18n="exams.pages">عدد الصفحات (بحد أقصى)</label>
+              <div class="seg" id="examPagesSeg">
+                <button type="button" data-pages="1" class="active">1</button>
+                <button type="button" data-pages="2">2</button>
+              </div>
+            </div>
+            <div class="field">
+              <label data-i18n="exams.number">رقم الاختبار (تلقائي)</label>
+              <input type="number" id="examNumber" min="1" class="readonly" readonly />
+            </div>
+            <div class="field">
+              <label data-i18n="exams.book">اسم الكتاب</label>
+              <input type="text" id="examBookName" />
+            </div>
+            <div class="field">
+              <label data-i18n="exams.reading">اسم القراءة</label>
+              <input type="text" id="examReadingName" />
+            </div>
+          </div>
+
+          <div class="builder-sections">
+            <!-- النوع الأول: مقالي -->
+            <div class="builder-sec sec-essay">
+              <h4 class="sec-h sec-h--essay" data-i18n="exams.secEssayHead">أجب عن الأسئلة الآتية</h4>
+              <div id="essayQuestions" class="q-list"></div>
+              <button type="button" class="btn btn--soft btn--sm" id="addEssayQ">＋ <span data-i18n="exams.addEssay">سؤال مقالي</span></button>
+            </div>
+
+            <!-- النوع الثاني: اختيار من متعدد -->
+            <div class="builder-sec sec-mcq">
+              <h4 class="sec-h sec-h--mcq" data-i18n="exams.secMcqHead">اختر الإجابة الصحيحة عن الأسئلة الآتية</h4>
+              <div id="mcqQuestions" class="q-list"></div>
+              <button type="button" class="btn btn--soft btn--sm" id="addMcqQ">＋ <span data-i18n="exams.addMcq">سؤال اختياري</span></button>
+            </div>
+
+            <!-- النوع الثالث: صح / خطأ -->
+            <div class="builder-sec sec-tf">
+              <h4 class="sec-h sec-h--tf" data-i18n="exams.secTfHead">أجب عن الأسئلة الآتية بصح أو خطأ</h4>
+              <div id="tfQuestions" class="q-list"></div>
+              <button type="button" class="btn btn--soft btn--sm" id="addTfQ">＋ <span data-i18n="exams.addTf">سؤال صح/خطأ</span></button>
+            </div>
+          </div>
+
+          <div class="overlay-actions">
+            <button type="button" class="btn btn--ghost" id="examPreviewBtn">👁 <span data-i18n="exams.preview">معاينة</span></button>
+            <button type="button" class="btn btn--primary" id="examGenerateBtn">🖨 <span data-i18n="exams.generate">توليد PDF</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════ قسم تقارير الوالدين ════════════ -->
+    <section class="view" id="view-reports" data-view="reports" hidden>
+      <div class="view-head">
+        <h2 data-i18n="reports.title">تقارير الوالدين — بنقرة واحدة</h2>
+      </div>
+
+      <div class="card parent-report">
+        <div class="form-grid">
+          <div class="field">
+            <label for="reportStudentSelect" data-i18n="reports.student">الطالب</label>
+            <select id="reportStudentSelect"></select>
+          </div>
+          <div class="field">
+            <label for="reportPeriodSelect" data-i18n="reports.period">الفترة</label>
+            <select id="reportPeriodSelect">
+              <option value="thisWeek" data-i18n="reports.thisWeek">هذا الأسبوع</option>
+              <option value="lastWeek" data-i18n="reports.lastWeek">الأسبوع الماضي</option>
+              <option value="thisMonth" data-i18n="reports.thisMonth">هذا الشهر</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn--primary btn--block" id="generateReportBtn">⚡ <span data-i18n="reports.generate">تجهيز التقرير بنقرة واحدة</span></button>
+
+        <textarea id="reportPreview" class="report-preview" readonly rows="16"
+                  data-i18n-placeholder="reports.emptyPreview" placeholder="سيظهر التقرير هنا..."></textarea>
+
+        <div class="send-actions">
+          <button type="button" class="btn btn--send" id="sendTelegramBtn">✈️ Telegram</button>
+          <button type="button" class="btn btn--send" id="copyReportBtn">📋 <span data-i18n="reports.copy">نسخ</span></button>
+          <button type="button" class="btn btn--send" id="shareReportBtn">🔗 <span data-i18n="reports.share">مشاركة</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════ قسم الإعدادات والحسابات ════════════ -->
+    <section class="view" id="view-settings" data-view="settings" hidden>
+      <div class="view-head">
+        <h2 data-i18n="settings.title">الإعدادات والحسابات</h2>
+      </div>
+
+      <!-- حسابي: تغيير الاسم وكلمة المرور -->
+      <div class="card">
+        <h3 class="card-title" data-i18n="settings.account">حسابي</h3>
+        <p class="muted" id="currentUserBadge">—</p>
+        <form id="accountForm" class="form-grid" autocomplete="off">
+          <div class="field">
+            <label for="curPassword" data-i18n="settings.curPass">كلمة المرور الحالية</label>
+            <input type="password" id="curPassword" required />
+          </div>
+          <div class="field">
+            <label for="newUsername" data-i18n="settings.newUser">اسم المستخدم الجديد</label>
+            <input type="text" id="newUsername" />
+          </div>
+          <div class="field">
+            <label for="newPassword" data-i18n="settings.newPass">كلمة المرور الجديدة</label>
+            <input type="password" id="newPassword" />
+          </div>
+          <div class="field">
+            <label for="confirmPassword" data-i18n="settings.confirmPass">تأكيد كلمة المرور</label>
+            <input type="password" id="confirmPassword" />
+          </div>
+          <button type="submit" class="btn btn--primary" data-i18n="settings.updateAccount">تحديث بياناتي</button>
+        </form>
+      </div>
+
+      <!-- المستخدمون والصلاحيات (للمدير فقط) -->
+      <div class="card" id="usersCard">
+        <h3 class="card-title" data-i18n="settings.users">المستخدمون والصلاحيات</h3>
+        <form id="addUserForm" class="form-grid" autocomplete="off">
+          <div class="field">
+            <label for="newAccUsername" data-i18n="login.username">اسم المستخدم</label>
+            <input type="text" id="newAccUsername" required />
+          </div>
+          <div class="field">
+            <label for="newAccPassword" data-i18n="login.password">كلمة المرور</label>
+            <input type="password" id="newAccPassword" required />
+          </div>
+          <div class="field">
+            <label for="newAccRole" data-i18n="settings.role">الصلاحية</label>
+            <select id="newAccRole">
+              <option value="admin" data-i18n="settings.roleAdmin">مدير — كل الصلاحيات</option>
+              <option value="teacher" data-i18n="settings.roleTeacher">معلم — بدون إدارة الحسابات</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn--primary" data-i18n="settings.addUser">إضافة حساب</button>
+        </form>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th data-i18n="login.username">اسم المستخدم</th>
+                <th data-i18n="settings.role">الصلاحية</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- المزامنة السحابية -->
+      <div class="card">
+        <h3 class="card-title">☁️ <span data-i18n="settings.sync">المزامنة السحابية</span></h3>
+        <div class="form-grid">
+          <div class="field">
+            <label for="syncEndpoint" data-i18n="settings.syncEndpoint">عنوان الخادم (Backend API)</label>
+            <input type="url" id="syncEndpoint" placeholder="https://..." />
+          </div>
+          <div class="field">
+            <label for="syncKey" data-i18n="settings.syncKey">مفتاح المزامنة</label>
+            <input type="password" id="syncKey" />
+          </div>
+          <label class="switch-wrap">
+            <input type="checkbox" id="autoSyncToggle" />
+            <span data-i18n="settings.autoSync">مزامنة تلقائية عند كل تغيير</span>
+          </label>
+          <button type="button" class="btn btn--primary" id="syncNowBtn" data-i18n="settings.syncNow">زامِن الآن</button>
+        </div>
+        <p class="muted" id="lastSyncTime">—</p>
+      </div>
+
+      <!-- أيام الدرس + عدد المطالعين -->
+      <div class="card">
+        <h3 class="card-title" data-i18n="settings.studyDays">أيام الدرس</h3>
+        <div class="days-picker" id="settingsDaysPicker">
+          <button type="button" class="day-chip" data-day="0" data-i18n="day.0">الأحد</button>
+          <button type="button" class="day-chip" data-day="1" data-i18n="day.1">الاثنين</button>
+          <button type="button" class="day-chip" data-day="2" data-i18n="day.2">الثلاثاء</button>
+          <button type="button" class="day-chip" data-day="3" data-i18n="day.3">الأربعاء</button>
+          <button type="button" class="day-chip" data-day="4" data-i18n="day.4">الخميس</button>
+          <button type="button" class="day-chip" data-day="5" data-i18n="day.5">الجمعة</button>
+          <button type="button" class="day-chip" data-day="6" data-i18n="day.6">السبت</button>
+        </div>
+        <div class="field seg-wrap">
+          <span data-i18n="recitation.mutalaPerDay">عدد المطالعين في اليوم</span>
+          <div class="seg" id="settingsMutalaSeg">
+            <button type="button" data-count="1">1</button>
+            <button type="button" data-count="2">2</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- البيانات -->
+      <div class="card">
+        <h3 class="card-title" data-i18n="settings.data">البيانات</h3>
+        <div class="btn-row">
+          <button type="button" class="btn btn--soft" id="exportDataBtn" data-i18n="settings.export">تصدير نسخة (JSON)</button>
+          <button type="button" class="btn btn--soft" id="importDataBtn" data-i18n="settings.import">استيراد نسخة</button>
+          <input type="file" id="importFileInput" accept="application/json" hidden />
+          <button type="button" class="btn btn--ghost" id="logoutBtn" data-i18n="settings.logout">تسجيل الخروج</button>
+          <button type="button" class="btn btn--danger" id="resetAppBtn" data-i18n="settings.reset">تصفير التطبيق</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     (4) النوافذ المنبثقة العامة + الإشعارات
+════════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="modalBackdrop" hidden>
+  <div class="modal glass" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h3 id="modalTitle">—</h3>
+      <button type="button" class="icon-btn" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- معاينة ورقة الاختبار A4 -->
+<div class="overlay overlay--print" id="examPreviewOverlay" hidden>
+  <div class="overlay-card overlay-card--wide glass">
+    <div class="overlay-head">
+      <h3 data-i18n="exams.preview">معاينة الاختبار</h3>
+      <div class="btn-row">
+        <button type="button" class="btn btn--primary btn--sm" id="examPreviewPrint">🖨 PDF</button>
+        <button type="button" class="icon-btn" id="examPreviewClose">✕</button>
+      </div>
+    </div>
+    <div class="preview-scroll" id="previewScroll">
+      <div id="examSheetContainer"></div>
+    </div>
+  </div>
+</div>
+
+<!-- الإشعارات -->
+<div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
+<!-- مسرح PDF المخفي (يُستخدم عند التوليد) -->
+<div id="pdfStage" class="pdf-stage" aria-hidden="true"></div>
+
+<noscript>
+  <p style="color:#fff;padding:2rem;text-align:center">
+    يرجى تفعيل JavaScript / እባክዎ JavaScript ያንቁት / Please enable JavaScript
+  </p>
+</noscript>
+
+<script src="js/app.js" defer></script>
+</body>
+</html>
