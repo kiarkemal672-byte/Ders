@@ -1,0 +1,22 @@
+{
+  "id": "./",
+  "name": "ቂራአት አስተዳደር — إدارة القراءات",
+  "short_name": "ቂራአት",
+  "description": "የክታቢት እና የቂራአት አስተዳደር መተግበሪያ • إدارة الكتاتيب والقراءات: الحضور، المتن والمطالعة، الاختبارات PDF، وتقارير الوالدين",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "dir": "auto",
+  "lang": "am",
+  "theme_color": "#0a1120",
+  "background_color": "#05080f",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "icons/icon.svg",     "sizes": "any",      "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192",  "type": "image/png",     "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512",  "type": "image/png",     "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512",  "type": "image/png",     "purpose": "maskable" }
+  ]
+}
